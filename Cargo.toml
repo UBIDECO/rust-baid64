@@ -1,0 +1,21 @@
+[package]
+name = "baid64"
+version = "0.1.0"
+description = "Easy-to-check Base64 encoding for identities"
+keywords = ["base64", "encoding", "mnemonic"]
+categories = ["encoding", "value-formatting", "command-line-utilities"]
+readme = "README.md"
+authors = ["Dr. Maxim Orlovsky <orlovsky@ubideco.org>"]
+homepage = "https://github.com/UBIDECO/rust-baid64"
+repository = "https://github.com/UBIDECO/rust-baid64"
+rust-version = "1.66.0"
+edition = "2021"
+license = "Apache-2.0"
+
+[lib]
+
+[dependencies]
+amplify = "4.6.0"
+base64 = "0.22.0"
+sha2 = "0.10.8"
+mnemonic = "1.0.1"
