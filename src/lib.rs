@@ -30,7 +30,7 @@ use sha2::Digest;
 pub const HRI_MAX_LEN: usize = 16;
 
 pub const BAID64_ALPHABET: &str =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@$";
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!$";
 
 fn check<const LEN: usize>(hri: &'static str, payload: [u8; LEN]) -> [u8; 4] {
     let key = sha2::Sha256::digest(hri.as_bytes());
