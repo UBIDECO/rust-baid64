@@ -22,6 +22,7 @@
 #[macro_use]
 extern crate amplify;
 
+use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
 use base64::Engine;
@@ -88,9 +89,16 @@ pub enum Baid64ParseError {
     #[from]
     #[display(inner)]
     Base64(base64::DecodeError),
+
+    /// invalid Baid64 payload - {0}
+    InvalidPayload(String),
 }
 
-pub trait FromBaid64Str<const LEN: usize = 32>: DisplayBaid64<LEN> + From<[u8; LEN]> {
+pub trait FromBaid64Str<const LEN: usize = 32>
+where
+    Self: DisplayBaid64<LEN> + TryFrom<[u8; LEN]>,
+    <Self as TryFrom<[u8; LEN]>>::Error: Error,
+{
     fn from_baid64_str(mut s: &str) -> Result<Self, Baid64ParseError> {
         let orig = s;
 
@@ -145,7 +153,7 @@ pub trait FromBaid64Str<const LEN: usize = 32>: DisplayBaid64<LEN> + From<[u8; L
             ));
         }
 
-        Ok(Self::from(payload))
+        Self::try_from(payload).map_err(|e| Baid64ParseError::InvalidPayload(e.to_string()))
     }
 }
 
