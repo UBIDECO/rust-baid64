@@ -28,7 +28,7 @@ use std::fmt::{self, Display, Formatter};
 use base64::Engine;
 use sha2::Digest;
 
-pub const ID_MIN_LEN: usize = 8;
+pub const ID_MIN_LEN: usize = 4;
 pub const HRI_MAX_LEN: usize = 16;
 
 pub const BAID64_ALPHABET: &str =
