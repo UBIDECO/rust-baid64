@@ -28,6 +28,7 @@ use std::fmt::{self, Display, Formatter};
 use base64::Engine;
 use sha2::Digest;
 
+pub const ID_MIN_LEN: usize = 8;
 pub const HRI_MAX_LEN: usize = 16;
 
 pub const BAID64_ALPHABET: &str =
@@ -178,8 +179,11 @@ impl<const LEN: usize> Baid64Display<LEN> {
         suffix: bool,
         embed_checksum: bool,
     ) -> Self {
-        debug_assert!(hri.len() <= HRI_MAX_LEN, "HRI is too long");
-        debug_assert!(LEN > HRI_MAX_LEN, "Baid64 id must be at least 9 bytes");
+        debug_assert!(
+            hri.len() <= HRI_MAX_LEN,
+            "HRI is too long; it must not exceed {HRI_MAX_LEN} bytes"
+        );
+        debug_assert!(LEN > ID_MIN_LEN, "Baid64 id payload must be at least {ID_MIN_LEN} bytes");
 
         let checksum = check(hri, payload);
         let mnemonic = mnemonic::to_string(checksum);
