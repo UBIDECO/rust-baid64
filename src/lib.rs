@@ -32,7 +32,7 @@ pub const ID_MIN_LEN: usize = 4;
 pub const HRI_MAX_LEN: usize = 16;
 
 pub const BAID64_ALPHABET: &str =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!$";
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789~.";
 
 fn check<const LEN: usize>(hri: &'static str, payload: [u8; LEN]) -> [u8; 4] {
     let key = sha2::Sha256::digest(hri.as_bytes());
@@ -104,8 +104,8 @@ where
         let orig = s;
 
         use base64::alphabet::Alphabet;
-        use base64::engine::general_purpose::NO_PAD;
         use base64::engine::GeneralPurpose;
+        use base64::engine::general_purpose::NO_PAD;
 
         let mut checksum = None;
 
@@ -229,8 +229,8 @@ impl<const LEN: usize> Baid64Display<LEN> {
 impl<const LEN: usize> Display for Baid64Display<LEN> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         use base64::alphabet::Alphabet;
-        use base64::engine::general_purpose::NO_PAD;
         use base64::engine::GeneralPurpose;
+        use base64::engine::general_purpose::NO_PAD;
 
         if (self.prefix && !f.sign_minus()) || (!self.prefix && f.sign_minus()) {
             write!(f, "{}:", self.hri)?;

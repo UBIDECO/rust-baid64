@@ -1,7 +1,7 @@
 [package]
 name = "baid64"
-version = "0.2.2"
-description = "Easy-to-check Base64 encoding for identities"
+version = "0.3.0"
+description = "Easy-to-check URL-safe Base64 encoding for identities"
 keywords = ["base64", "encoding", "mnemonic"]
 categories = ["encoding", "value-formatting", "command-line-utilities"]
 readme = "README.md"
