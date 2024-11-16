@@ -23,8 +23,8 @@
 extern crate amplify;
 pub extern crate base64;
 
-use std::error::Error;
-use std::fmt::{self, Display, Formatter};
+use core::error::Error;
+use core::fmt::{self, Display, Formatter};
 
 use base64::Engine;
 use sha2::Digest;
