@@ -19,6 +19,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![no_std]
+
+extern crate alloc;
 #[macro_use]
 extern crate amplify;
 pub extern crate base64;
@@ -88,10 +91,6 @@ pub enum Baid64ParseError {
     #[display(inner)]
     InvalidMnemonic(mnemonic::Error),
 
-    #[from]
-    #[display(inner)]
-    Base64(base64::DecodeError),
-
     /// invalid Baid64 payload - {0}
     InvalidPayload(String),
 }
@@ -135,15 +134,18 @@ where
 
         let alphabet = Alphabet::new(BAID64_ALPHABET).expect("invalid Baid64 alphabet");
         let engine = GeneralPurpose::new(&alphabet, NO_PAD);
-        let data = engine.decode(s)?;
+        let mut buf = [0u8; LEN + 4];
+        let len = engine
+            .decode_slice(s, &mut buf)
+            .map_err(|_| Baid64ParseError::InvalidLen(orig.to_owned()))?;
 
-        if data.len() != LEN && data.len() != LEN + 4 {
+        if len != LEN && len != LEN + 4 {
             return Err(Baid64ParseError::InvalidLen(orig.to_owned()));
         }
         let mut payload = [0u8; LEN];
-        payload.copy_from_slice(&data[..LEN]);
-        if data.len() == LEN + 4 {
-            checksum = Some([data[LEN], data[LEN + 1], data[LEN + 2], data[LEN + 3]]);
+        payload.copy_from_slice(&buf[..LEN]);
+        if len == LEN + 4 {
+            checksum = Some([buf[LEN], buf[LEN + 1], buf[LEN + 2], buf[LEN + 3]]);
         }
 
         let ck = check(Self::HRI, payload);
@@ -244,7 +246,7 @@ impl<const LEN: usize> Display for Baid64Display<LEN> {
         if self.embed_checksum {
             payload.extend(self.checksum);
         }
-        let s = engine.encode(payload);
+        let s = engine.encode_slice(payload);
 
         if self.chunking {
             let bytes = s.as_bytes();
