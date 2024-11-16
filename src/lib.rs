@@ -21,6 +21,7 @@
 
 #[macro_use]
 extern crate amplify;
+pub extern crate base64;
 
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
