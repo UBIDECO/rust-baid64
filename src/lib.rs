@@ -32,7 +32,7 @@ pub const ID_MIN_LEN: usize = 4;
 pub const HRI_MAX_LEN: usize = 16;
 
 pub const BAID64_ALPHABET: &str =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789~.";
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_~";
 
 fn check<const LEN: usize>(hri: &'static str, payload: [u8; LEN]) -> [u8; 4] {
     let key = sha2::Sha256::digest(hri.as_bytes());
