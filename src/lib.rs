@@ -19,12 +19,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![no_std]
+
+#[cfg(feature = "std")]
+extern crate std;
+
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
+#[cfg(not(any(feature = "std", feature = "alloc")))]
+compile_error!("Either `std` or `alloc` feature must be enabled.");
+
+#[cfg(all(feature = "std", feature = "alloc"))]
+compile_error!("Both `std` and `alloc` features cannot be enabled at the same time.");
+
 #[macro_use]
 extern crate amplify;
 pub extern crate base64;
 
-use std::error::Error;
-use std::fmt::{self, Display, Formatter};
+extern crate core;
+
+#[cfg(feature = "alloc")]
+use alloc::{
+    borrow::ToOwned,
+    string::{String, ToString},
+    vec::Vec,
+};
+use core::error::Error;
+use core::fmt::{self, Debug, Display, Formatter};
+#[cfg(feature = "std")]
+use std::{
+    borrow::ToOwned,
+    string::{String, ToString},
+    vec::Vec,
+};
 
 use base64::Engine;
 use sha2::Digest;
