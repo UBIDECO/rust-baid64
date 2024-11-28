@@ -1,6 +1,6 @@
 [package]
 name = "baid64"
-version = "0.4.0"
+version = "0.4.1"
 description = "Easy-to-check URL-safe Base64 encoding for identities"
 keywords = ["base64", "encoding", "mnemonic"]
 categories = ["encoding", "value-formatting", "command-line-utilities"]
@@ -15,7 +15,7 @@ license = "Apache-2.0"
 [lib]
 
 [dependencies]
-amplify = "4.6.0"
+amplify = "4.8.0"
 base64 = "0.22.1"
 sha2 = "0.10.8"
 mnemonic = "1.1.1"

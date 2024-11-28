@@ -49,6 +49,8 @@ pub trait DisplayBaid64<const LEN: usize = 32> {
     const PREFIX: bool;
     const EMBED_CHECKSUM: bool;
     const MNEMONIC: bool;
+    const CHUNK_FIRST: usize = 8;
+    const CHUNK_LEN: usize = 7;
 
     fn to_baid64_payload(&self) -> [u8; LEN];
     fn to_baid64_string(&self) -> String { self.display_baid64().to_string() }
@@ -58,6 +60,8 @@ pub trait DisplayBaid64<const LEN: usize = 32> {
             Self::HRI,
             self.to_baid64_payload(),
             Self::CHUNKING,
+            Self::CHUNK_FIRST,
+            Self::CHUNK_LEN,
             Self::PREFIX,
             Self::MNEMONIC,
             Self::EMBED_CHECKSUM,
@@ -163,6 +167,8 @@ where
 pub struct Baid64Display<const LEN: usize = 32> {
     hri: &'static str,
     chunking: bool,
+    chunk_first: usize,
+    chunk_len: usize,
     mnemonic: String,
     prefix: bool,
     suffix: bool,
@@ -176,6 +182,8 @@ impl<const LEN: usize> Baid64Display<LEN> {
         hri: &'static str,
         payload: [u8; LEN],
         chunking: bool,
+        chunk_first: usize,
+        chunk_len: usize,
         prefix: bool,
         suffix: bool,
         embed_checksum: bool,
@@ -192,6 +200,8 @@ impl<const LEN: usize> Baid64Display<LEN> {
         Self {
             hri,
             chunking,
+            chunk_first,
+            chunk_len,
             mnemonic,
             prefix,
             suffix,
@@ -202,7 +212,7 @@ impl<const LEN: usize> Baid64Display<LEN> {
     }
 
     pub fn new(hri: &'static str, payload: [u8; LEN]) -> Self {
-        Self::with(hri, payload, false, false, false, false)
+        Self::with(hri, payload, false, 8, 7, false, false, false)
     }
     pub const fn use_hri(mut self) -> Self {
         self.prefix = true;
@@ -248,8 +258,8 @@ impl<const LEN: usize> Display for Baid64Display<LEN> {
 
         if self.chunking {
             let bytes = s.as_bytes();
-            f.write_str(&String::from_utf8_lossy(&bytes[..8]))?;
-            for chunk in bytes[8..].chunks(7) {
+            f.write_str(&String::from_utf8_lossy(&bytes[..self.chunk_first]))?;
+            for chunk in bytes[self.chunk_first..].chunks(self.chunk_len) {
                 write!(f, "-{}", &String::from_utf8_lossy(chunk))?;
             }
         } else {
