@@ -184,7 +184,7 @@ impl<const LEN: usize> Baid64Display<LEN> {
             hri.len() <= HRI_MAX_LEN,
             "HRI is too long; it must not exceed {HRI_MAX_LEN} bytes"
         );
-        debug_assert!(LEN > ID_MIN_LEN, "Baid64 id payload must be at least {ID_MIN_LEN} bytes");
+        debug_assert!(LEN >= ID_MIN_LEN, "Baid64 id payload must be at least {ID_MIN_LEN} bytes");
 
         let checksum = check(hri, payload);
         let mnemonic = mnemonic::to_string(checksum);
@@ -261,5 +261,250 @@ impl<const LEN: usize> Display for Baid64Display<LEN> {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::convert::Infallible;
+
+    use base64::alphabet::Alphabet;
+    use base64::engine::GeneralPurpose;
+    use fmt::Write;
+    use sha2::{Digest, Sha256};
+
+    use super::*;
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct TestBaid64 {
+        payload: [u8; 32],
+    }
+
+    impl DisplayBaid64<32> for TestBaid64 {
+        const HRI: &'static str = "testHRI";
+        const CHUNKING: bool = false;
+        const PREFIX: bool = true;
+        const EMBED_CHECKSUM: bool = true;
+        const MNEMONIC: bool = true;
+
+        fn to_baid64_payload(&self) -> [u8; 32] { self.payload }
+    }
+
+    impl TryFrom<[u8; 32]> for TestBaid64 {
+        type Error = Infallible;
+
+        fn try_from(_value: [u8; 32]) -> Result<Self, Self::Error> {
+            Ok(TestBaid64 { payload: _value })
+        }
+    }
+
+    impl FromBaid64Str for TestBaid64 {}
+
+    /// Test the `check` function for accurate checksum computation.
+    #[test]
+    fn test_check_function() {
+        let hri = "testHRI";
+        let payload: [u8; 32] = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+            0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B,
+            0x1C, 0x1D, 0x1E, 0x1F,
+        ];
+
+        // Manually compute the expected checksum
+        let key = Sha256::digest(hri.as_bytes());
+        let mut sha = Sha256::new_with_prefix(key);
+        sha.update(payload);
+        let sha_result = sha.finalize();
+        let expected = [sha_result[0], sha_result[1], sha_result[1], sha_result[2]];
+
+        let result = check(hri, payload);
+        assert_eq!(result, expected, "Checksum does not match expected value");
+    }
+
+    /// Test the `Baid64Display` struct for correct initialization and checksum.
+    #[test]
+    fn test_baid64_display() {
+        let hri = "testHRI";
+        let payload: [u8; 32] = [1; 32];
+        let display = Baid64Display::with(
+            hri, payload, true, // chunking
+            true, // prefix
+            true, // suffix (mnemonic)
+            true, // embed_checksum
+        );
+
+        assert_eq!(display.hri, hri);
+        assert_eq!(display.payload, payload);
+        assert!(display.chunking);
+        assert!(display.prefix);
+        assert!(display.suffix);
+        assert!(display.embed_checksum);
+        // Since payload is all 1s and hri is "testHRI", compute the expected checksum
+        let expected_checksum = check(hri, payload);
+        assert_eq!(display.checksum, expected_checksum);
+        // Since mnemonic is derived from checksum
+        let expected_mnemonic = mnemonic::to_string(expected_checksum);
+        assert_eq!(display.mnemonic, expected_mnemonic);
+    }
+
+    /// Test the `Display` implementation of `Baid64Display` for correct
+    /// formatting.
+    #[test]
+    fn test_baid64_display_fmt() {
+        let hri = "testHRI";
+        let payload: [u8; 4] = [0xDE, 0xAD, 0xBE, 0xEF];
+        let display = Baid64Display::with(
+            hri, payload, // Using LEN=4 for simplicity in test
+            false,   // chunking
+            true,    // prefix
+            true,    // suffix (mnemonic)
+            true,    // embed_checksum
+        );
+
+        // Manually compute the expected string
+        let mut expected = format!("{}:", hri);
+        let alphabet = Alphabet::new(BAID64_ALPHABET).expect("invalid Baid64 alphabet");
+        let engine = GeneralPurpose::new(&alphabet, base64::engine::general_purpose::NO_PAD);
+        let mut encoded_payload = payload.to_vec();
+        encoded_payload.extend(display.checksum);
+        let encoded_str = engine.encode(encoded_payload);
+        expected.push_str(&encoded_str);
+        expected.push('#');
+        expected.push_str(&display.mnemonic);
+
+        let mut formatted = String::new();
+        write!(&mut formatted, "{}", display).unwrap();
+        let actual = display.to_string();
+        assert_eq!(actual, expected, "Formatted Base64 string does not match expected");
+    }
+
+    /// Test the `from_baid64_str` method for accurate parsing and error
+    /// handling.
+    #[test]
+    fn test_from_baid64_str() {
+        let hri = "testHRI";
+        let payload: [u8; 32] = [2; 32];
+        let checksum = check(hri, payload);
+        let mnemonic_str = mnemonic::to_string(checksum);
+
+        // Encode payload + checksum
+        let alphabet = Alphabet::new(BAID64_ALPHABET).expect("invalid Baid64 alphabet");
+        let engine = GeneralPurpose::new(&alphabet, base64::engine::general_purpose::NO_PAD);
+        let mut encoded_payload = payload.to_vec();
+        let raw_payload = encoded_payload.clone();
+        encoded_payload.extend(&checksum);
+        let encoded_str = engine.encode(&encoded_payload);
+        let encoded_str_without_checksum = engine.encode(&raw_payload);
+        // Construct the Baid64 string with prefix and mnemonic
+        let baid64_str = format!("{}:{}#{}", hri, encoded_str, mnemonic_str);
+
+        // Parse the Baid64 string
+        let parsed =
+            TestBaid64::from_baid64_str(&baid64_str).expect("Failed to parse Baid64 string");
+
+        // Verify the parsed payload
+        assert_eq!(parsed.payload, payload, "Parsed payload does not match original payload");
+
+        // Test with incorrect HRI
+        let bad_hri_str = format!("wrongHRI:{}#{}", encoded_str, mnemonic_str);
+        let result = TestBaid64::from_baid64_str(&bad_hri_str);
+        match result {
+            Err(Baid64ParseError::InvalidHri(orig, expected)) => {
+                assert_eq!(orig, bad_hri_str);
+                assert_eq!(expected, "testHRI");
+            }
+            _ => panic!("Expected InvalidHri error"),
+        }
+
+        // Test with incorrect checksum
+        let bad_checksum = [0x00, 0x00, 0x00, 0x00];
+        let bad_mnemonic = mnemonic::to_string(bad_checksum);
+        let bad_baid64_str = format!("{}:{}#{}", hri, encoded_str_without_checksum, bad_mnemonic);
+        let result = TestBaid64::from_baid64_str(&bad_baid64_str);
+        match result {
+            Err(Baid64ParseError::InvalidChecksum(orig, expected, found)) => {
+                assert_eq!(orig, bad_baid64_str);
+                assert_eq!(u32::from_le_bytes(checksum), expected);
+                assert_eq!(u32::from_le_bytes(bad_checksum), found);
+            }
+            e => panic!("Expected InvalidChecksum error, actual error: {:?}", e),
+        }
+
+        // Test with invalid Base64
+        let invalid_base64_str = format!("{}:invalidbase64#{}", hri, mnemonic_str);
+        let result = TestBaid64::from_baid64_str(&invalid_base64_str);
+        match result {
+            Err(Baid64ParseError::Base64(_)) => {}
+            _ => panic!("Expected Base64 error"),
+        }
+
+        // Test with missing HRI
+        let missing_hri_str = format!("{}#{}", encoded_str, mnemonic_str);
+        let result =
+            TestBaid64::from_baid64_str(&missing_hri_str).expect("Failed to parse without HRI");
+        assert_eq!(
+            result.payload, payload,
+            "Parsed payload does not match original payload without HRI"
+        );
+
+        // Test with missing checksum
+        let no_checksum_str = format!("{}:{}", hri, engine.encode(payload));
+        let result = TestBaid64::from_baid64_str(&no_checksum_str)
+            .expect("Failed to parse without checksum");
+        assert_eq!(
+            result.payload, payload,
+            "Parsed payload does not match original payload without checksum"
+        );
+    }
+
+    /// Test the end-to-end encoding and decoding process.
+    #[test]
+    fn test_encode_decode_round_trip() {
+        let payload: [u8; 32] = [
+            0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80, 0x90, 0xA0, 0xB0, 0xC0, 0xD0, 0xE0,
+            0xF0, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC,
+            0xDD, 0xEE, 0xFF, 0x00,
+        ];
+
+        let test_obj = TestBaid64 { payload };
+        let baid64_str = test_obj.to_baid64_string();
+        let decoded_obj =
+            TestBaid64::from_baid64_str(&baid64_str).expect("Failed to decode Baid64 string");
+
+        assert_eq!(test_obj, decoded_obj, "Round-trip encoding/decoding failed");
+    }
+
+    /// Test chunking feature in `Baid64Display`.
+    #[test]
+    fn test_baid64_display_chunking() {
+        let hri = "testHRI";
+        let payload: [u8; 32] = [3; 32];
+        let display = Baid64Display::with(
+            hri, payload, true, // chunking
+            true, // prefix
+            true, // suffix
+            true, // embed_checksum
+        );
+
+        // Encode payload + checksum
+        let alphabet = Alphabet::new(BAID64_ALPHABET).expect("invalid Baid64 alphabet");
+        let engine = GeneralPurpose::new(&alphabet, base64::engine::general_purpose::NO_PAD);
+        let mut encoded_payload = payload.to_vec();
+        encoded_payload.extend(&display.checksum);
+        let encoded_str = engine.encode(&encoded_payload);
+
+        // Apply chunking: first 8 characters, then chunks of 7 separated by '-'
+        let mut expected = format!("{}:", hri);
+        expected.push_str(&encoded_str[..8]);
+        for chunk in encoded_str[8..].as_bytes().chunks(7) {
+            expected.push('-');
+            expected.push_str(std::str::from_utf8(chunk).unwrap());
+        }
+        expected.push('#');
+        expected.push_str(&display.mnemonic);
+
+        let actual = display.to_string();
+
+        assert_eq!(actual, expected, "Chunked Baid64 string does not match expected format");
     }
 }
