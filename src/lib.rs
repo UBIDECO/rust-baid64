@@ -178,6 +178,7 @@ pub struct Baid64Display<const LEN: usize = 32> {
 }
 
 impl<const LEN: usize> Baid64Display<LEN> {
+    #[allow(clippy::too_many_arguments)]
     pub fn with(
         hri: &'static str,
         payload: [u8; LEN],
@@ -276,8 +277,6 @@ impl<const LEN: usize> Display for Baid64Display<LEN> {
 
 #[cfg(test)]
 mod tests {
-    use std::convert::Infallible;
-
     use base64::alphabet::Alphabet;
     use base64::engine::GeneralPurpose;
     use fmt::Write;
@@ -300,12 +299,8 @@ mod tests {
         fn to_baid64_payload(&self) -> [u8; 32] { self.payload }
     }
 
-    impl TryFrom<[u8; 32]> for TestBaid64 {
-        type Error = Infallible;
-
-        fn try_from(_value: [u8; 32]) -> Result<Self, Self::Error> {
-            Ok(TestBaid64 { payload: _value })
-        }
+    impl From<[u8; 32]> for TestBaid64 {
+        fn from(value: [u8; 32]) -> Self { TestBaid64 { payload: value } }
     }
 
     impl FromBaid64Str for TestBaid64 {}
@@ -338,8 +333,8 @@ mod tests {
         let payload: [u8; 32] = [1; 32];
         let display = Baid64Display::with(
             hri, payload, true, // chunking
-            8, // chunk_first
-            7, // chunk_len
+            8,    // chunk_first
+            7,    // chunk_len
             true, // prefix
             true, // suffix (mnemonic)
             true, // embed_checksum
@@ -495,8 +490,8 @@ mod tests {
         let payload: [u8; 32] = [3; 32];
         let display = Baid64Display::with(
             hri, payload, true, // chunking
-            8, // chunk_first
-            7, // chunk_len
+            8,    // chunk_first
+            7,    // chunk_len
             true, // prefix
             true, // suffix
             true, // embed_checksum
@@ -512,7 +507,7 @@ mod tests {
         // Apply chunking: first 8 characters, then chunks of 7 separated by '-'
         let mut expected = format!("{}:", hri);
         expected.push_str(&encoded_str[..8]);
-        for chunk in encoded_str[8..].as_bytes().chunks(7) {
+        for chunk in encoded_str.as_bytes()[8..].chunks(7) {
             expected.push('-');
             expected.push_str(std::str::from_utf8(chunk).unwrap());
         }
